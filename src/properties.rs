@@ -1,4 +1,4 @@
-/// Macros for generating property tests for the required properties
+//! Macros for generating property tests for the required properties
 
 #[macro_export]
 macro_rules! semigroup_properties {

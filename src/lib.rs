@@ -1,3 +1,4 @@
+//! Mostly interesting for the property-based tests.
 pub mod gaussian;
 pub mod instances;
 pub mod traits;

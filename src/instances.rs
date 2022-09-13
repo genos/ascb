@@ -1,4 +1,4 @@
-/// Some useful standalone instances
+//! Some useful standalone instances
 use crate::traits::*;
 use std::collections::HashMap;
 use std::hash::Hash;

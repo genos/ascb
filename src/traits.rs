@@ -1,4 +1,4 @@
-/// Core algebraic traits
+//! Core algebraic traits
 
 /// A set with a closed associative binary operation
 ///
