@@ -1,0 +1,14 @@
+[package]
+name = "ascb"
+version = "0.1.0"
+edition = "2021"
+description = "Algebraic Structure ⇒ Computational Benefits"
+
+[dependencies]
+libm = "0.2.5"
+num-traits = "0.2.15"
+rand = "0.8.5"
+rayon = "1.5.3"
+
+[dev-dependencies]
+proptest = "1.0.0"
