@@ -1,6 +1,5 @@
 //! Macros for generating property tests for the required properties
 
-#[macro_export]
 macro_rules! semigroup_properties {
     ($arb:expr) => {
         proptest! {
@@ -15,7 +14,8 @@ macro_rules! semigroup_properties {
     };
 }
 
-#[macro_export]
+pub(crate) use semigroup_properties;
+
 macro_rules! monoid_properties {
     ($arb:expr) => {
         mod semigroup_properties {
@@ -35,7 +35,8 @@ macro_rules! monoid_properties {
     };
 }
 
-#[macro_export]
+pub(crate) use monoid_properties;
+
 macro_rules! commutative_monoid_properties {
     ($arb:expr) => {
         mod monoid_properties {
@@ -51,7 +52,8 @@ macro_rules! commutative_monoid_properties {
     };
 }
 
-#[macro_export]
+pub(crate) use commutative_monoid_properties;
+
 macro_rules! semiring_properties {
     ($arb: expr) => {
         mod commutative_monoid_properties {
@@ -97,3 +99,5 @@ macro_rules! semiring_properties {
         }
     };
 }
+
+pub(crate) use semiring_properties;

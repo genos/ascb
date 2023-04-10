@@ -1,9 +1,9 @@
 //! Core algebraic traits
+use std::{collections::HashMap, hash::Hash, num::NonZeroU64};
 
 /// A set with a closed associative binary operation
-///
-/// `PartialEq` because we use equality in property tests
-pub trait Semigroup: PartialEq {
+pub trait Semigroup {
+    /// Associative operation
     fn op(x: &Self, y: &Self) -> Self;
 }
 
@@ -12,6 +12,7 @@ pub trait Semigroup: PartialEq {
 /// Ideally we'd like to have this be a constant, but some instances require this to be a function
 /// (e.g. HashMap & String).
 pub trait Monoid: Semigroup {
+    /// Identity element for [`Semigroup::op`]
     fn zero() -> Self;
 }
 
@@ -20,28 +21,21 @@ pub trait CommutativeMonoid: Monoid {}
 
 /// A commutative monoid with an additional operation and identity element (one)
 pub trait Semiring: CommutativeMonoid {
-    fn one() -> Self;
+    /// Additional associative binary operation
     fn mul(x: &Self, y: &Self) -> Self;
+    /// Identity element for [`Semiring::mul`]
+    fn one() -> Self;
 }
 
 /// Simultaneously map items to a monoid and accumulate them
-pub fn fold_map<T, I, M, F>(xs: I, f: F) -> M
-where
-    I: Iterator<Item = T>,
-    M: Monoid,
-    F: Fn(T) -> M,
-{
+pub fn fold_map<T, M: Monoid>(xs: impl Iterator<Item = T>, f: impl Fn(T) -> M) -> M {
     xs.fold(M::zero(), |m, t| M::op(&m, &f(t)))
 }
 
 /// This pops up _lots_ of places.
-pub fn power_semigroup<S: Semigroup + Clone>(x: S, n: u64) -> S {
-    assert!(
-        n >= 1,
-        "Semigroups don't necessarily have an identity element."
-    );
+pub fn power_semigroup<S: Semigroup + Clone>(x: S, n: NonZeroU64) -> S {
     let mut y = x.clone();
-    let mut m = n;
+    let mut m = n.get();
     while m > 1 {
         if m & 1 == 1 {
             y = S::op(&y, &x);
@@ -52,11 +46,61 @@ pub fn power_semigroup<S: Semigroup + Clone>(x: S, n: u64) -> S {
     y
 }
 
-/// Monoid version, accepting 0 as an argument.
+/// Monoid version, accepting 0 as an argument
 pub fn power_monoid<M: Monoid + Clone>(x: M, n: u64) -> M {
-    if n == 0 {
-        M::zero()
-    } else {
-        power_semigroup(x, n)
+    NonZeroU64::new(n)
+        .map(|p| power_semigroup(x, p))
+        .unwrap_or_else(M::zero)
+}
+
+/// The direct product of two semigroups is a semigroup.
+impl<X: Semigroup, Y: Semigroup> Semigroup for (X, Y) {
+    fn op((a, x): &Self, (b, y): &Self) -> Self {
+        (X::op(a, b), Y::op(x, y))
+    }
+}
+
+/// The direct product of two monoids is a monoid.
+impl<X: Monoid, Y: Monoid> Monoid for (X, Y) {
+    fn zero() -> Self {
+        (X::zero(), Y::zero())
+    }
+}
+
+/// A Semigroup can be made into a monoid by adjoining a new identity element.
+impl<T: Semigroup + Clone> Semigroup for Option<T> {
+    fn op(x: &Self, y: &Self) -> Self {
+        match (x, y) {
+            (Some(a), Some(b)) => Some(T::op(a, b)),
+            (None, _) => y.clone(),
+            (_, None) => x.clone(),
+        }
+    }
+}
+
+/// A Semigroup can be made into a monoid by adjoining a new identity element.
+impl<T: Semigroup + Clone> Monoid for Option<T> {
+    fn zero() -> Self {
+        None
+    }
+}
+
+/// A map of {key ↦ value} is a semigroup if the values form one.
+impl<K: Clone + Eq + Hash, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
+    fn op(x: &Self, y: &Self) -> Self {
+        let mut h = HashMap::new();
+        for (k, v) in x.iter().chain(y.iter()) {
+            h.entry((*k).clone())
+                .and_modify(|w| *w = V::op(w, v))
+                .or_insert_with(|| v.clone());
+        }
+        h
+    }
+}
+
+/// A map of {key ↦ value} is a monoid if the values form a semigroup.
+impl<K: Clone + Eq + Hash, V: Semigroup + Clone> Monoid for HashMap<K, V> {
+    fn zero() -> Self {
+        HashMap::new()
     }
 }
