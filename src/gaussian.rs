@@ -1,5 +1,4 @@
-//! See HLearn's original Gaussian distribution work:
-//! https://github.com/mikeizbicki/HLearn/blob/bb258e88a0f42be4cead167b4da2694a1a2c4605/src/HLearn/Models/Distributions/Gaussian.hs
+//! See HLearn's original [Gaussian distribution work](https://github.com/mikeizbicki/HLearn/blob/bb258e88a0f42be4cead167b4da2694a1a2c4605/src/HLearn/Models/Distributions/Gaussian.hs).
 
 use std::f64::consts::PI;
 use std::iter::FromIterator;
@@ -40,7 +39,6 @@ impl Default for Gaussian {
     }
 }
 
-#[allow(dead_code)]
 impl Gaussian {
     /// Construct from a single data point.
     pub fn new(x: f64) -> Gaussian {
