@@ -17,8 +17,8 @@ mod tests {
     mod max {
         use super::*;
         use prop::collection::vec;
+        use rand::rng;
         use rand::seq::SliceRandom;
-        use rand::thread_rng;
         use rayon::prelude::*;
 
         #[derive(Clone, Copy, Debug, PartialEq)]
@@ -40,10 +40,10 @@ mod tests {
         proptest! {
             #[test]
             fn map_shuffle_reduce_sort_of(xs in vec(any::<f64>(), 0..1000)) {
-                let map_reduce = xs.iter().cloned().map(Max).fold(Monoid::zero(), |x, y| Semigroup::op(&x, &y));
+                let map_reduce = xs.iter().copied().map(Max).fold(Monoid::zero(), |x, y| Semigroup::op(&x, &y));
                 let map_shuffle_reduce = {
                     let mut ys = xs.into_iter().map(Max).collect::<Vec<_>>();
-                    ys.shuffle(&mut thread_rng());
+                    ys.shuffle(&mut rng());
                     ys
                 }.par_chunks(4)
                     .map(|c| c.iter().fold(Monoid::zero(), |x, &y| Semigroup::op(&x, &y)))
@@ -93,40 +93,44 @@ mod tests {
         commutative_monoid_properties!(|| any::<bool>().prop_map(All));
     }
 
-    // Boolean blindness :-(
-    // Other options are worse.
-    // I want feature(adt_const_params)!
-    #[derive(Debug, PartialEq)]
-    struct TaggedU64<const ADDING: bool>(u64);
-    impl Semigroup for TaggedU64<true> {
-        fn op(&TaggedU64(x): &Self, &TaggedU64(y): &Self) -> Self {
-            TaggedU64(x.wrapping_add(y))
+    mod sum {
+        use super::*;
+
+        #[derive(Debug, PartialEq)]
+        struct Sum(u64);
+        impl Semigroup for Sum {
+            fn op(&Sum(x): &Self, &Sum(y): &Self) -> Self {
+                Self(x.wrapping_add(y))
+            }
         }
-    }
-    impl Semigroup for TaggedU64<false> {
-        fn op(&TaggedU64(x): &Self, &TaggedU64(y): &Self) -> Self {
-            TaggedU64(x.wrapping_mul(y))
+        impl Monoid for Sum {
+            fn zero() -> Self {
+                Self(0)
+            }
         }
-    }
-    impl Monoid for TaggedU64<true> {
-        fn zero() -> Self {
-            TaggedU64(0)
-        }
-    }
-    impl Monoid for TaggedU64<false> {
-        fn zero() -> Self {
-            TaggedU64(1)
-        }
+        impl CommutativeMonoid for Sum {}
+
+        commutative_monoid_properties!(|| any::<u64>().prop_map(Sum));
     }
 
-    mod u64_add {
+    mod prod {
         use super::*;
-        monoid_properties!(|| any::<u64>().prop_map(TaggedU64::<true>));
-    }
 
-    mod u64_mul {
-        use super::*;
-        monoid_properties!(|| any::<u64>().prop_map(TaggedU64::<false>));
+        #[derive(Debug, PartialEq)]
+        struct Prod(u64);
+        impl Semigroup for Prod {
+            fn op(&Prod(x): &Self, &Prod(y): &Self) -> Self {
+                Self(x.wrapping_mul(y))
+            }
+        }
+        impl Monoid for Prod {
+            fn zero() -> Self {
+                Self(1)
+            }
+        }
+        impl CommutativeMonoid for Prod {}
+
+        commutative_monoid_properties!(|| any::<u64>().prop_map(Prod));
     }
 
     mod string {
@@ -134,12 +138,12 @@ mod tests {
 
         impl Semigroup for String {
             fn op(x: &Self, y: &Self) -> Self {
-                format!("{}{}", x, y)
+                format!("{x}{y}")
             }
         }
         impl Monoid for String {
             fn zero() -> Self {
-                "".to_string()
+                String::new()
             }
         }
 
@@ -151,11 +155,7 @@ mod tests {
 
         impl<T: PartialEq + Copy> Semigroup for Vec<T> {
             fn op(xs: &Self, ys: &Self) -> Self {
-                let mut zs = Vec::with_capacity(xs.len() + ys.len());
-                for z in xs.iter().chain(ys.iter()) {
-                    zs.push(*z);
-                }
-                zs
+                xs.iter().chain(ys.iter()).copied().collect()
             }
         }
         impl<T: PartialEq + Copy> Monoid for Vec<T> {
@@ -192,7 +192,13 @@ mod tests {
                     .reduce(Monoid::zero, |g1, g2| Semigroup::op(&g1, &g2));
                 let sharper_par = xs
                     .par_chunks(4)
-                    .map(|c| {let mut g = Gaussian::default(); c.iter().for_each(|&x| g += x); g})
+                    .map(|c| {
+                        let mut g = Gaussian::default();
+                        for &x in c {
+                            g += x;
+                        }
+                        g
+                    })
                     .reduce(Monoid::zero, |g1, g2| Semigroup::op(&g1, &g2));
                 let par_from_iter = xs
                     .par_chunks(4)
@@ -277,8 +283,7 @@ mod tests {
             type Output = Self;
             fn mul(self, y: Self) -> Self::Output {
                 match (self, y) {
-                    (MinPlus::Infinity, _) => MinPlus::Infinity,
-                    (_, MinPlus::Infinity) => MinPlus::Infinity,
+                    (MinPlus::Infinity, _) | (_, MinPlus::Infinity) => MinPlus::Infinity,
                     (MinPlus::Finite(a), MinPlus::Finite(b)) => MinPlus::Finite(a.add(b)),
                 }
             }

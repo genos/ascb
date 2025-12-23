@@ -1,4 +1,4 @@
-//! See HLearn's original [Gaussian distribution work](https://github.com/mikeizbicki/HLearn/blob/bb258e88a0f42be4cead167b4da2694a1a2c4605/src/HLearn/Models/Distributions/Gaussian.hs).
+//! See `HLearn`'s original [Gaussian distribution work](https://github.com/mikeizbicki/HLearn/blob/bb258e88a0f42be4cead167b4da2694a1a2c4605/src/HLearn/Models/Distributions/Gaussian.hs).
 
 use std::f64::consts::PI;
 use std::iter::FromIterator;
@@ -7,7 +7,7 @@ use std::ops::{Add, AddAssign};
 use crate::traits::{Monoid, Semigroup};
 
 /// Parameterized 1D Gaussian distribution
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Gaussian {
     /// First moment of distribution (mean)
     m1: f64,
@@ -18,29 +18,20 @@ pub struct Gaussian {
 }
 
 /// numpy.isclose
-fn _close(x: f64, y: f64) -> bool {
+fn close(x: f64, y: f64) -> bool {
     (x - y).abs() <= 1e-8 + 1e-5 * y.abs()
 }
 
 impl PartialEq for Gaussian {
     fn eq(&self, other: &Gaussian) -> bool {
-        (self.n == other.n) && _close(self.m1, other.m1) && _close(self.m2, other.m2)
+        (self.n == other.n) && close(self.m1, other.m1) && close(self.m2, other.m2)
     }
 }
 impl Eq for Gaussian {}
 
-impl Default for Gaussian {
-    fn default() -> Self {
-        Gaussian {
-            m1: 0.0,
-            m2: 0.0,
-            n: 0.0,
-        }
-    }
-}
-
 impl Gaussian {
     /// Construct from a single data point.
+    #[must_use]
     pub fn new(x: f64) -> Gaussian {
         Gaussian {
             m1: x,
@@ -49,21 +40,28 @@ impl Gaussian {
         }
     }
     /// The mean of this distribution.
+    #[must_use]
     pub fn mean(&self) -> f64 {
         self.m1
     }
     /// The (sample) variance of this distribution.
+    ///
+    /// # Panics
+    /// If there are no samples in this distribution.
+    #[must_use]
     pub fn variance(&self) -> f64 {
         assert!(self.n > 1.0, "Variance requires more than 1 sample.");
         self.m2 / (self.n - 1.0)
     }
     /// Probability Density Function.
+    #[must_use]
     pub fn pdf(&self, x: f64) -> f64 {
         let m = self.mean();
         let v = self.variance();
         1.0 / (2.0 * PI * v).sqrt() * (-0.5 * ((x - m).powi(2) / v)).exp()
     }
     /// Cumulative Distribution Function.
+    #[must_use]
     pub fn cdf(&self, x: f64) -> f64 {
         let m = self.mean();
         let v = self.variance();
@@ -95,9 +93,9 @@ impl AddAssign<f64> for Gaussian {
 /// Accumulate the points one at a time into a new Gaussian distribution.
 impl FromIterator<f64> for Gaussian {
     fn from_iter<I: IntoIterator<Item = f64>>(iter: I) -> Self {
-        let mut g = Default::default();
+        let mut g = Self::default();
         for i in iter {
-            g += i
+            g += i;
         }
         g
     }
@@ -106,9 +104,9 @@ impl FromIterator<f64> for Gaussian {
 /// Accumulate the points one at a time into a new Gaussian distribution.
 impl<'a> FromIterator<&'a f64> for Gaussian {
     fn from_iter<I: IntoIterator<Item = &'a f64>>(iter: I) -> Self {
-        let mut g = Default::default();
-        for i in iter {
-            g += *i
+        let mut g = Self::default();
+        for &i in iter {
+            g += i;
         }
         g
     }

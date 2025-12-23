@@ -1,14 +1,23 @@
 [package]
 name = "ascb"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
 description = "Algebraic Structure ⇒ Computational Benefits"
 
 [dependencies]
-libm = "0.2.6"
+libm = "0.2.15"
 num-traits = "0.2.15"
-rand = "0.8.5"
-rayon = "1.7.0"
+rand = "0.9.2"
+rayon = "1.11.0"
 
 [dev-dependencies]
-proptest = "1.1.0"
+proptest = "1.9.0"
+
+[profile.dev]
+debug = 0
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
